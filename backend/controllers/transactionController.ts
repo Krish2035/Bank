@@ -1,7 +1,7 @@
 import { type Request, type Response } from 'express';
 import mongoose from 'mongoose';
-import User from '../models/User.js'; // Ensure .js extension for ESM
-import Transaction from '../models/Transaction.js'; // Ensure .js extension for ESM
+import User from '../models/User.js'; // ESM requires .js extension
+import Transaction from '../models/Transaction.js'; // ESM requires .js extension
 
 // Interface to handle the user object from your protect middleware
 interface AuthRequest extends Request {
@@ -47,6 +47,7 @@ export const addMoney = async (req: AuthRequest, res: Response) => {
             }
         }], { session });
 
+        // FIX TS18048: Check if transaction exists before accessing _id
         const transaction = createdTransactions[0];
         if (!transaction) {
             throw new Error("Failed to create transaction record");
@@ -123,6 +124,7 @@ export const transferByPhone = async (req: AuthRequest, res: Response) => {
             }
         }], { session });
 
+        // FIX TS18048: Explicit check for transaction record
         const transaction = createdTransactions[0];
         if (!transaction) {
             throw new Error("Transaction record could not be generated");
@@ -186,6 +188,7 @@ export const payUtilityBill = async (req: AuthRequest, res: Response) => {
             }
         }], { session });
 
+        // FIX TS18048: Explicit check for bill payment record
         const transaction = createdTransactions[0];
         if (!transaction) {
             throw new Error("Bill payment record creation failed");

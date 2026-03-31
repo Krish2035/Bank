@@ -1,12 +1,12 @@
-import express, { Router } from 'express';
+import express, { type Router } from 'express';
 import { 
     registerUser, 
     loginUser, 
     getMe, 
     logoutUser,
-    updateUserProfile // Imported the new update controller
-} from '../controllers/authController.ts'; 
-import { protect } from '../middleware/authMiddleware.ts';
+    updateUserProfile 
+} from '../controllers/authController.js'; // Updated to .js for ESM compatibility
+import { protect } from '../middleware/authMiddleware.js'; // Updated to .js for ESM compatibility
 
 const router: Router = express.Router();
 

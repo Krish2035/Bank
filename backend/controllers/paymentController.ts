@@ -1,7 +1,7 @@
-import { Request, Response } from 'express';
+import { type Request, type Response } from 'express';
 import mongoose from 'mongoose';
-import User from '../models/User.ts';
-import Transaction from '../models/Transaction.ts';
+import User from '../models/User.js'; // Updated to .js for ESM compatibility
+import Transaction from '../models/Transaction.js'; // Updated to .js for ESM compatibility
 
 /**
  * Custom interface to allow 'user' property on Request
@@ -55,7 +55,7 @@ export const transferFunds = async (req: AuthRequest, res: Response) => {
         await recipient.save({ session });
 
         // 5. Create Transaction Record
-        await Transaction.create([
+        const createdTransactions = await Transaction.create([
             {
                 sender: sender._id,
                 receiver: recipient._id,
@@ -67,6 +67,11 @@ export const transferFunds = async (req: AuthRequest, res: Response) => {
                 metadata: { phoneNumber: recipient.phoneNumber }
             }
         ], { session });
+
+        // Check if transaction was successfully created before committing
+        if (!createdTransactions || createdTransactions.length === 0) {
+            throw new Error("Failed to record transaction history");
+        }
 
         // Commit all DB changes at once
         await session.commitTransaction();
@@ -116,7 +121,7 @@ export const payBill = async (req: AuthRequest, res: Response) => {
         await user.save({ session });
 
         // 2. Record Bill Payment
-        await Transaction.create([
+        const createdTransactions = await Transaction.create([
             {
                 sender: userId,
                 amount: billAmount,
@@ -127,6 +132,10 @@ export const payBill = async (req: AuthRequest, res: Response) => {
                 metadata: { serviceProvider, billId: consumerNumber }
             }
         ], { session });
+
+        if (!createdTransactions || createdTransactions.length === 0) {
+            throw new Error("Bill payment record failed to generate");
+        }
 
         await session.commitTransaction();
         
