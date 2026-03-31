@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+/* That's it! Tailwind v4 automatically handles 
+   base, components, and utilities from this one import. */
+
+/* Optional: Add your banking app font */
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
