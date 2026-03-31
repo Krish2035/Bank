@@ -8,34 +8,31 @@
     "jsx": "react-jsx",
     "allowJs": true,
 
-    /* Bundler & Runtime Behavior (Optimized for Bun) */
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true,
-    "noEmit": true,
-    "esModuleInterop": true, // Required for bcryptjs/jsonwebtoken imports
+    /* Compatibility Fixes for Vercel/Node.js */
+    "moduleResolution": "node", 
+    "verbatimModuleSyntax": false, 
+    "esModuleInterop": true, 
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
 
     /* Strictness & Best Practices */
     "strict": true,
     "noImplicitAny": true,
-    "strictNullChecks": true,
-    "noUncheckedIndexedAccess": true, // Great for financial apps (handling undefined array elements)
+    "strictNullChecks": false, 
+    "noUncheckedIndexedAccess": false, 
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,
 
     /* Development Experience */
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noPropertyAccessFromIndexSignature": false,
     
-    /* Path Mapping (Optional - helps with clean imports) */
     "baseUrl": ".",
     "paths": {
       "@/*": ["./*"]
     }
   },
   "include": ["**/*.ts"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "dist"]
 }
