@@ -11,3 +11,6 @@ frontend/.env
 # Ignore build files
 dist/
 build/
+
+frontend/dist/
+dist/
