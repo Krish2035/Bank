@@ -1,7 +1,7 @@
-import { Request, Response } from 'express';
+import { type Request, type Response } from 'express';
 import mongoose from 'mongoose';
-import User from '../models/User.ts';
-import Transaction from '../models/Transaction.ts';
+import User from '../models/User.js'; // Ensure .js extension for ESM
+import Transaction from '../models/Transaction.js'; // Ensure .js extension for ESM
 
 // Interface to handle the user object from your protect middleware
 interface AuthRequest extends Request {
@@ -10,7 +10,6 @@ interface AuthRequest extends Request {
 
 /**
  * Handles Adding Money to the Wallet (Top-up)
- * POST /api/transactions/add-money
  */
 export const addMoney = async (req: AuthRequest, res: Response) => {
     const session = await mongoose.startSession();
@@ -26,7 +25,6 @@ export const addMoney = async (req: AuthRequest, res: Response) => {
 
         const topUpAmount = Number(amount);
 
-        // 1. Find User and Update Balance
         const user = await User.findById(userId).session(session);
         if (!user) {
             throw new Error("User session not found");
@@ -35,9 +33,8 @@ export const addMoney = async (req: AuthRequest, res: Response) => {
         user.balance += topUpAmount;
         await user.save({ session });
 
-        // 2. Create Deposit Transaction Record
-        const [transaction] = await Transaction.create([{
-            sender: userId, // In a deposit, the user is technically the receiver, but we list them as sender for history context
+        const createdTransactions = await Transaction.create([{
+            sender: userId,
             receiver: userId,
             amount: topUpAmount,
             type: 'deposit',
@@ -49,6 +46,11 @@ export const addMoney = async (req: AuthRequest, res: Response) => {
                 timestamp: new Date()
             }
         }], { session });
+
+        const transaction = createdTransactions[0];
+        if (!transaction) {
+            throw new Error("Failed to create transaction record");
+        }
 
         await session.commitTransaction();
 
@@ -108,7 +110,7 @@ export const transferByPhone = async (req: AuthRequest, res: Response) => {
         receiver.balance += transferAmount;
         await receiver.save({ session });
 
-        const [transaction] = await Transaction.create([{
+        const createdTransactions = await Transaction.create([{
             sender: senderId,
             receiver: receiver._id,
             amount: transferAmount,
@@ -120,6 +122,11 @@ export const transferByPhone = async (req: AuthRequest, res: Response) => {
                 phoneNumber: phone
             }
         }], { session });
+
+        const transaction = createdTransactions[0];
+        if (!transaction) {
+            throw new Error("Transaction record could not be generated");
+        }
 
         await session.commitTransaction();
         
@@ -166,7 +173,7 @@ export const payUtilityBill = async (req: AuthRequest, res: Response) => {
         sender.balance -= billAmount;
         await sender.save({ session });
 
-        const [transaction] = await Transaction.create([{
+        const createdTransactions = await Transaction.create([{
             sender: senderId,
             amount: billAmount,
             type: 'bill_pay',
@@ -178,6 +185,11 @@ export const payUtilityBill = async (req: AuthRequest, res: Response) => {
                 billId: consumerId
             }
         }], { session });
+
+        const transaction = createdTransactions[0];
+        if (!transaction) {
+            throw new Error("Bill payment record creation failed");
+        }
 
         await session.commitTransaction();
 

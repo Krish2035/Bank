@@ -1,6 +1,7 @@
-import { Request, Response, NextFunction } from "express";
+import { type Request, type Response, type NextFunction } from "express";
 import jwt from 'jsonwebtoken';
 
+// Use the type keyword for the extended interface as well
 export interface AuthRequest extends Request {
     user?: { id: string } | string | any;
 }
@@ -14,11 +15,13 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { id: string };
-        // Standardize req.user to an object with an id property for consistency across controllers
+        
+        // Standardize req.user to an object with an id property
         req.user = { id: decoded.id }; 
         next();
     } catch (error) {
         res.status(401).json({ message: "Not authorized, token failed" });
     }
 };
+
 export const authMiddleware = protect;

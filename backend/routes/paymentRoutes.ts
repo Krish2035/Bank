@@ -1,9 +1,9 @@
-import { Router, Response } from 'express';
-import { createPaymentIntent } from '../services/stripeService.ts';
-import Transaction from '../models/Transaction.ts';
-import { protect, AuthRequest } from '../middleware/authMiddleware.ts';
-import { transferFunds, payBill } from '../controllers/paymentController.ts';
-import User from '../models/User.ts';
+import { Router, type Response } from 'express';
+import { createPaymentIntent } from '../services/stripeService.js';
+import Transaction from '../models/Transaction.js';
+import { protect, type AuthRequest } from '../middleware/authMiddleware.js';
+import { transferFunds, payBill } from '../controllers/paymentController.js';
+import User from '../models/User.js';
 import mongoose from 'mongoose';
 
 const router = Router();
@@ -25,17 +25,17 @@ router.post('/create-intent', protect, async (req: AuthRequest, res: Response) =
         // 1. Call Stripe Service
         const intent = await createPaymentIntent(Number(amount), currency, { userId });
 
-        // 2. Create a 'pending' record so we can track the attempt
+        // 2. Create a 'pending' record
         await Transaction.create([
             {
                 sender: userId,
                 amount: Number(amount),
                 type: 'deposit',
                 status: 'pending',
-                category: 'Deposit',
+                category: 'Top-up', // Fixed: Match categories from Transaction model
                 description: `Deposit via Stripe (${currency.toUpperCase()})`,
                 metadata: { 
-                    billId: intent.id // This is the Stripe Payment Intent ID
+                    billId: intent.id // Stripe Payment Intent ID
                 }
             }
         ]);
@@ -52,7 +52,7 @@ router.post('/create-intent', protect, async (req: AuthRequest, res: Response) =
 
 /**
  * @route   POST /api/payments/confirm-deposit
- * @desc    Step 2: Update user balance after Stripe confirms success on frontend
+ * @desc    Step 2: Update user balance after Stripe confirms success
  * @access  Private
  */
 router.post('/confirm-deposit', protect, async (req: AuthRequest, res: Response) => {
@@ -63,11 +63,11 @@ router.post('/confirm-deposit', protect, async (req: AuthRequest, res: Response)
         const { paymentIntentId } = req.body;
         const userId = req.user?.id;
 
-        // 1. Find the pending transaction linked to this Stripe ID
+        // 1. Find the pending transaction
         const transaction = await Transaction.findOne({ 
             "metadata.billId": paymentIntentId, 
             status: 'pending',
-            sender: userId // Ensure the requester owns this transaction
+            sender: userId 
         }).session(session);
 
         if (!transaction) {

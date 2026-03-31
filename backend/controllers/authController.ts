@@ -1,5 +1,5 @@
-import { Request, Response } from 'express';
-import User from '../models/User.ts';
+import { type Request, type Response } from 'express';
+import User from '../models/User.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
@@ -38,9 +38,14 @@ export const registerUser = async (req: Request, res: Response) => {
 
         await newUser.save();
 
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) {
+            throw new Error("JWT_SECRET is not defined in environment variables");
+        }
+
         const token = jwt.sign(
             { id: newUser._id }, 
-            process.env.JWT_SECRET as string, 
+            jwtSecret, 
             { expiresIn: '1d' }
         );
 
@@ -76,9 +81,14 @@ export const loginUser = async (req: Request, res: Response) => {
             return res.status(400).json({ message: "Invalid Email or Password" });
         }
 
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) {
+            throw new Error("JWT_SECRET is not defined");
+        }
+
         const token = jwt.sign(
             { id: user._id }, 
-            process.env.JWT_SECRET as string, 
+            jwtSecret, 
             { expiresIn: '1d' }
         );
 
@@ -115,14 +125,12 @@ export const getMe = async (req: AuthRequest, res: Response) => {
 
 /**
  * --- UPDATE USER PROFILE ---
- * Allows updating specific fields like firstName, lastName, and phoneNumber
  */
 export const updateUserProfile = async (req: AuthRequest, res: Response) => {
     try {
         const userId = typeof req.user === 'object' ? req.user.id : req.user;
         const { firstName, lastName, phoneNumber } = req.body;
 
-        // Find and update user
         const updatedUser = await User.findByIdAndUpdate(
             userId,
             { 
@@ -132,7 +140,7 @@ export const updateUserProfile = async (req: AuthRequest, res: Response) => {
                     phoneNumber 
                 } 
             },
-            { new: true, runValidators: true } // returns the new object and runs schema validation
+            { new: true, runValidators: true }
         ).select('-password');
 
         if (!updatedUser) {

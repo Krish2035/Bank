@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import mongoose, { Schema, type Document, type Model } from 'mongoose';
 
 // 1. Interface representing the User document
 export interface IUser extends Document {
@@ -11,6 +11,8 @@ export interface IUser extends Document {
     phoneNumber?: string;
     createdAt: Date;
     updatedAt: Date;
+    // CRITICAL FIX: Mark __v as optional so it can be safely deleted in toJSON
+    __v?: number; 
 }
 
 // 2. Define the Schema
@@ -44,7 +46,7 @@ const UserSchema: Schema<IUser> = new Schema(
             type: String,
             unique: true,
             required: true,
-            index: true // Optimized for searching
+            index: true 
         },
         balance: { 
             type: Number, 
@@ -58,9 +60,9 @@ const UserSchema: Schema<IUser> = new Schema(
     },
     { 
         timestamps: true,
-        // Ensures that when we convert to JSON (API responses), we don't leak internal __v
         toJSON: {
-            transform: (doc, ret) => {
+            transform: (_doc, ret) => {
+                // This now works because __v is marked as optional in the interface
                 delete ret.__v;
                 return ret;
             }
@@ -70,4 +72,5 @@ const UserSchema: Schema<IUser> = new Schema(
 
 // 3. Create and Export the Model
 const User: Model<IUser> = mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
+
 export default User;

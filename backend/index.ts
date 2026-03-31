@@ -1,4 +1,9 @@
-import express, { Request, Response, Application, NextFunction } from 'express';
+import express, { 
+    type Request, 
+    type Response, 
+    type Application, 
+    type NextFunction 
+} from 'express';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cors from 'cors';
@@ -42,6 +47,7 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/transactions', transactionRoutes);
@@ -54,6 +60,7 @@ app.get('/', (_req: Request, res: Response) => {
     });
 });
 
+// Global Error Handler
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const statusCode = err.statusCode || 500;
     res.status(statusCode).json({
@@ -66,6 +73,10 @@ const connectDB = async () => {
     if (mongoose.connection.readyState >= 1) return;
     try {
         mongoose.set('strictQuery', true);
+        if (!MONGO_URI) {
+            console.error('❌ MONGO_URI is not defined in environment variables');
+            return;
+        }
         await mongoose.connect(MONGO_URI);
         console.log('✅ Connected to MongoDB');
     } catch (err: any) {
@@ -73,6 +84,7 @@ const connectDB = async () => {
     }
 };
 
+// Vercel execution logic
 if (process.env.NODE_ENV !== 'production') {
     connectDB().then(() => {
         app.listen(PORT, () => console.log(`🚀 Running on port ${PORT}`));

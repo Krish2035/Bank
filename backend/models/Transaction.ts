@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import mongoose, { Schema, type Document, type Model } from 'mongoose';
 
 /**
  * Transaction Enums for consistency across the app
@@ -8,7 +8,6 @@ export const TransactionStatuses = ['pending', 'completed', 'failed'] as const;
 
 /**
  * Transaction Categories
- * Fix: 'Top-up' is included to match the Frontend 'Add Money' action.
  */
 export const TransactionCategories = [
     'Utility', 
@@ -46,6 +45,8 @@ export interface ITransaction extends Document {
     };
     createdAt: Date;
     updatedAt: Date;
+    // CRITICAL FIX: Mark __v as optional so it can be safely deleted in toJSON
+    __v?: number;
 }
 
 const TransactionSchema: Schema<ITransaction> = new Schema(
@@ -58,7 +59,7 @@ const TransactionSchema: Schema<ITransaction> = new Schema(
         receiver: { 
             type: Schema.Types.ObjectId, 
             ref: 'User', 
-            required: false, // Optional for 'Add Money' or 'Withdrawals'
+            required: false, 
         },
         amount: { 
             type: Number, 
@@ -96,6 +97,7 @@ const TransactionSchema: Schema<ITransaction> = new Schema(
         timestamps: true,
         toJSON: {
             transform: (_doc, ret) => {
+                // This now works without TS2790 error
                 delete ret.__v;
                 return ret;
             }
@@ -104,7 +106,7 @@ const TransactionSchema: Schema<ITransaction> = new Schema(
 );
 
 /**
- * Indexes for high-performance queries (Optimizes History View)
+ * Indexes for high-performance queries
  */
 TransactionSchema.index({ sender: 1, createdAt: -1 });
 TransactionSchema.index({ receiver: 1, createdAt: -1 });
