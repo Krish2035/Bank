@@ -7,7 +7,8 @@ export const TransactionTypes = ['transfer', 'deposit', 'withdrawal', 'bill_pay'
 export const TransactionStatuses = ['pending', 'completed', 'failed'] as const;
 
 /**
- * UPDATED: Added 'Top-up' to allow Add Money transactions to save.
+ * Transaction Categories
+ * Fix: 'Top-up' is included to match the Frontend 'Add Money' action.
  */
 export const TransactionCategories = [
     'Utility', 
@@ -22,7 +23,7 @@ export const TransactionCategories = [
     'DTH',       
     'Water',     
     'Gas', 
-    'Top-up',    // Added this to fix your validation error
+    'Top-up',    
     'Other'
 ] as const;
 
@@ -57,7 +58,7 @@ const TransactionSchema: Schema<ITransaction> = new Schema(
         receiver: { 
             type: Schema.Types.ObjectId, 
             ref: 'User', 
-            required: false,
+            required: false, // Optional for 'Add Money' or 'Withdrawals'
         },
         amount: { 
             type: Number, 
@@ -77,7 +78,8 @@ const TransactionSchema: Schema<ITransaction> = new Schema(
         category: {
             type: String,
             enum: TransactionCategories, 
-            default: 'Other'
+            default: 'Other',
+            required: [true, 'Category is required']
         },
         description: { 
             type: String, 
@@ -101,8 +103,12 @@ const TransactionSchema: Schema<ITransaction> = new Schema(
     }
 );
 
+/**
+ * Indexes for high-performance queries (Optimizes History View)
+ */
 TransactionSchema.index({ sender: 1, createdAt: -1 });
 TransactionSchema.index({ receiver: 1, createdAt: -1 });
+TransactionSchema.index({ status: 1 });
 TransactionSchema.index({ "metadata.phoneNumber": 1 }, { sparse: true });
 TransactionSchema.index({ "metadata.billId": 1 }, { sparse: true });
 
