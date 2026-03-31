@@ -4,10 +4,10 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 
-// 1. Import Routes
-import authRoutes from './routes/authRoutes.ts';
-import paymentRoutes from './routes/paymentRoutes.ts';
-import transactionRoutes from './routes/transactionRoutes.ts';
+// 1. Import Routes (REMOVED .ts extensions for Vercel/Production compatibility)
+import authRoutes from './routes/authRoutes';
+import paymentRoutes from './routes/paymentRoutes';
+import transactionRoutes from './routes/transactionRoutes';
 
 dotenv.config();
 
@@ -19,7 +19,7 @@ const MONGO_URI = process.env.MONGO_URI as string;
 app.use(express.json());
 app.use(cookieParser());
 
-// UPDATED: Robust CORS with undefined check
+// UPDATED: Robust CORS with safety checks for undefined variables
 app.use(cors({
     origin: (origin, callback) => {
         // Filter out undefined values from the array to prevent .test() errors
@@ -27,7 +27,7 @@ app.use(cors({
             process.env.CLIENT_URL, 
             'http://localhost:5173',
             /\.vercel\.app$/ 
-        ].filter(Boolean); // This removes undefined/null entries
+        ].filter(Boolean); // This ensures process.env.CLIENT_URL isn't undefined
 
         const isAllowed = !origin || allowedOrigins.some(o => {
             if (o instanceof RegExp) {
@@ -76,6 +76,9 @@ const connectDB = async () => {
     
     try {
         mongoose.set('strictQuery', true);
+        if (!MONGO_URI) {
+            throw new Error('MONGO_URI is not defined in environment variables');
+        }
         await mongoose.connect(MONGO_URI);
         console.log('✅ [Database] Connected to MongoDB Atlas');
     } catch (err: any) {
@@ -91,6 +94,7 @@ if (process.env.NODE_ENV !== 'production') {
         });
     });
 } else {
+    // On Vercel (Production), we connect but don't call app.listen()
     connectDB();
 }
 
@@ -104,4 +108,8 @@ process.on('SIGINT', async () => {
     }
 });
 
+/**
+ * CRITICAL FOR VERCEL: 
+ * Export the app so Vercel can wrap it in a Serverless Function.
+ */
 export default app;
