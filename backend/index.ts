@@ -19,15 +19,24 @@ const MONGO_URI = process.env.MONGO_URI as string;
 app.use(express.json());
 app.use(cookieParser());
 
-// UPDATED: Dynamic CORS for Vercel
+// UPDATED: Robust CORS with undefined check
 app.use(cors({
     origin: (origin, callback) => {
+        // Filter out undefined values from the array to prevent .test() errors
         const allowedOrigins = [
             process.env.CLIENT_URL, 
             'http://localhost:5173',
-            /\.vercel\.app$/ // Matches any vercel sub-domain
-        ];
-        if (!origin || allowedOrigins.some(o => typeof o === 'string' ? o === origin : o.test(origin))) {
+            /\.vercel\.app$/ 
+        ].filter(Boolean); // This removes undefined/null entries
+
+        const isAllowed = !origin || allowedOrigins.some(o => {
+            if (o instanceof RegExp) {
+                return o.test(origin);
+            }
+            return o === origin;
+        });
+
+        if (isAllowed) {
             callback(null, true);
         } else {
             callback(new Error('Not allowed by CORS'));
@@ -62,7 +71,6 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 // 5. Database Connection Logic
-// We move connection logic into a function to prevent multiple connections in serverless
 const connectDB = async () => {
     if (mongoose.connection.readyState >= 1) return;
     
@@ -76,7 +84,6 @@ const connectDB = async () => {
 };
 
 // 6. Server Startup Logic
-// Check if we are running locally or on Vercel
 if (process.env.NODE_ENV !== 'production') {
     connectDB().then(() => {
         app.listen(PORT, () => {
@@ -84,7 +91,6 @@ if (process.env.NODE_ENV !== 'production') {
         });
     });
 } else {
-    // On Vercel, we just ensure the DB connects
     connectDB();
 }
 
@@ -98,8 +104,4 @@ process.on('SIGINT', async () => {
     }
 });
 
-/**
- * CRITICAL FOR VERCEL: 
- * Export the app so Vercel can wrap it in a Serverless Function.
- */
 export default app;
