@@ -9,6 +9,5 @@
       "source": "/(.*)",
       "destination": "/frontend/dist/$1"
     }
-  ],
-  "cleanUrls": true
+  ]
 }
