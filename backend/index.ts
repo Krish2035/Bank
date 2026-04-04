@@ -12,24 +12,20 @@ import transactionRoutes from './routes/transactionRoutes.js';
 dotenv.config();
 
 const app: Application = express();
-const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(express.json());
 app.use(cookieParser());
 
-// Robust CORS - Updated to include your Netlify and Vercel domains
+// Robust CORS - Allowing your specific frontend domain
 const allowedOrigins = [
-    process.env.CLIENT_URL,
-    'https://amazing-tulumba-29d6c9.netlify.app',
-    'https://bank-cfwv.vercel.app',
-    'http://localhost:5173',
-].filter(Boolean) as string[];
+    'https://bank-cfwv.vercel.app', 
+    'http://localhost:5173'
+].filter(Boolean);
 
 app.use(cors({
     origin: (origin, callback) => {
-        if (!origin) return callback(null, true);
-        if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app') || origin.endsWith('.netlify.app')) {
+        if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
             callback(null, true);
         } else {
             callback(new Error('Not allowed by CORS policy'));
@@ -43,26 +39,16 @@ app.use(cors({
 // Connect to DB
 connectDB();
 
-// Routes - DO NOT change these; the vercel.json rewrite handles the /api prefix
+// Routes
+// Note: If your frontend calls /api/auth, keep the /api prefix here
 app.use('/api/auth', authRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/transactions', transactionRoutes);
 
-// Health Check
-app.get('/api/health', (_req: Request, res: Response) => {
-    res.status(200).json({ status: 'success', message: 'Backend Operational' });
+// Simple root route to test if the backend is alive
+app.get('/', (req, res) => {
+    res.json({ message: "Backend is running on bank-o2xx" });
 });
 
-// Global Error Handler
-app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    res.status(err.statusCode || 500).json({
-        success: false,
-        message: err.message || 'Internal Server Error',
-    });
-});
-
-if (process.env.NODE_ENV !== 'production') {
-    app.listen(PORT, () => console.log(`🚀 Server: http://localhost:${PORT}`));
-}
-
+// Vercel handles the "listening" part, so we just export the app
 export default app;

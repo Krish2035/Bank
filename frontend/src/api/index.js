@@ -1,12 +1,12 @@
 import axios from 'axios';
 
-// Logic: If on Vercel/Netlify, we use the absolute path or relative /api
+// CRITICAL: Point this to your BACKEND deployment URL
 const baseURL = import.meta.env.VITE_API_URL || 
-                (import.meta.env.PROD ? 'https://bank-cfwv.vercel.app' : 'http://localhost:5000');
+                (import.meta.env.PROD ? 'https://bank-o2xx.vercel.app' : 'http://localhost:5000');
 
 const API = axios.create({
-    baseURL: baseURL, // This will now point to https://bank-cfwv.vercel.app
-    withCredentials: true,
+    baseURL: baseURL, 
+    withCredentials: true, // Required for JWT cookies across domains
     headers: {
         'Content-Type': 'application/json'
     }
