@@ -8,14 +8,14 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   /**
-   * Fetches the latest user profile and balance from the backend.
-   * Returns the updated user object so components can react immediately.
+   * Fetches latest user profile/balance. 
+   * Call this after transactions to update UI.
    */
   const checkUser = async () => {
     try {
       const { data } = await API.get('/auth/me');
       setUser(data);
-      return data; // Return data so callers can await the actual result
+      return data;
     } catch (error) {
       setUser(null);
       return null;
@@ -24,50 +24,40 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  /**
-   * Manual login function
-   */
   const login = (userData) => {
     setUser(userData);
   };
 
-  /**
-   * Logs the user out and clears state
-   */
   const logout = async () => {
     try {
       await API.post('/auth/logout');
     } catch (error) {
-      console.error("Logout failed, clearing local state.");
+      console.error("Logout request failed, clearing local state.");
     } finally {
       setUser(null);
-      window.location.replace('/login');
+      window.location.href = '/login';
     }
   };
 
-  // Initial check on mount
   useEffect(() => {
     checkUser();
   }, []);
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      setUser, 
-      checkUser, // Make sure checkUser is exported in the value!
-      login, 
-      loading, 
-      logout 
-    }}>
-      {children}
+    <AuthContext.Provider value={{ user, setUser, checkUser, login, loading, logout }}>
+      {!loading ? children : (
+        <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+            <div className="text-blue-500 animate-pulse font-mono text-xl">
+                &gt; ESTABLISHING_SECURE_CONNECTION...
+            </div>
+        </div>
+      )}
     </AuthContext.Provider>
   );
 };
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 };

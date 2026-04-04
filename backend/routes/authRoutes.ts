@@ -1,12 +1,12 @@
-import express, { type Router } from 'express';
+import express, { type Router, type Request, type Response } from 'express';
 import { 
     registerUser, 
     loginUser, 
     getMe, 
     logoutUser,
     updateUserProfile 
-} from '../controllers/authController.js'; // Updated to .js for ESM compatibility
-import { protect } from '../middleware/authMiddleware.js'; // Updated to .js for ESM compatibility
+} from '../controllers/authController.js'; 
+import { protect } from '../middleware/authMiddleware.js';
 
 const router: Router = express.Router();
 
@@ -33,7 +33,7 @@ router.get('/me', protect, getMe);
 
 /**
  * @route   PUT /api/auth/update-profile
- * @desc    Update user profile details (FirstName, LastName, Phone)
+ * @desc    Update user profile details
  * @access  Private
  */
 router.put('/update-profile', protect, updateUserProfile);
@@ -47,10 +47,10 @@ router.post('/logout', protect, logoutUser);
 
 /**
  * @route   GET /api/auth/status
- * @desc    Quick check for authentication status
+ * @desc    Check auth status (Used by frontend to verify session)
  * @access  Private
  */
-router.get('/status', protect, (req, res) => {
+router.get('/status', protect, (req: Request, res: Response) => {
     res.status(200).json({ 
         isAuthenticated: true,
         user: (req as any).user 

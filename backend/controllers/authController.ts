@@ -3,14 +3,29 @@ import User from '../models/User.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
-// Interface to extend Request with user data from middleware
+/**
+ * Custom Interface for requests containing user data
+ */
 interface AuthRequest extends Request {
     user?: any;
 }
 
-// Helper: Generate a unique 10-digit account number
+/**
+ * Helper: Generate a unique 10-digit account number
+ */
 const generateAccountNumber = (): string => {
     return Math.floor(1000000000 + Math.random() * 9000000000).toString();
+};
+
+/**
+ * Helper: Centralized Cookie Configuration
+ * This ensures cookies work across different Vercel domains
+ */
+const cookieOptions: any = {
+    httpOnly: true,
+    secure: true, // Required for sameSite: "none"
+    sameSite: "none", // Critical for Vercel cross-domain authentication
+    maxAge: 24 * 60 * 60 * 1000, // 1 day
 };
 
 // --- REGISTER USER ---
@@ -23,6 +38,7 @@ export const registerUser = async (req: Request, res: Response) => {
             return res.status(400).json({ message: "User already registered with this email" });
         }
 
+        // Hash Password
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -40,7 +56,7 @@ export const registerUser = async (req: Request, res: Response) => {
 
         const jwtSecret = process.env.JWT_SECRET;
         if (!jwtSecret) {
-            throw new Error("JWT_SECRET is not defined in environment variables");
+            throw new Error("JWT_SECRET is missing from server environment");
         }
 
         const token = jwt.sign(
@@ -49,19 +65,20 @@ export const registerUser = async (req: Request, res: Response) => {
             { expiresIn: '1d' }
         );
 
-        res.cookie("token", token, {
-            httpOnly: true, 
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
-            maxAge: 24 * 60 * 60 * 1000 
-        });
+        // Set Cookie
+        res.cookie("token", token, cookieOptions);
+
+        // Remove password from response
+        const userResponse = newUser.toObject();
+        delete (userResponse as any).password;
 
         res.status(201).json({
             message: "Account created successfully",
-            user: newUser
+            user: userResponse
         });
 
     } catch (error: any) {
+        console.error("Registration Error:", error);
         res.status(500).json({ message: "Registration failed", error: error.message });
     }
 };
@@ -71,6 +88,7 @@ export const loginUser = async (req: Request, res: Response) => {
     try {
         const { email, password } = req.body;
 
+        // Find user and explicitly select password for comparison
         const user = await User.findOne({ email }).select('+password');
         if (!user) {
             return res.status(400).json({ message: "Invalid Email or Password" });
@@ -92,19 +110,20 @@ export const loginUser = async (req: Request, res: Response) => {
             { expiresIn: '1d' }
         );
 
-        res.cookie("token", token, {
-            httpOnly: true, 
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax", 
-            maxAge: 24 * 60 * 60 * 1000 
-        });
+        // Set Cookie
+        res.cookie("token", token, cookieOptions);
+
+        // Remove password from response object
+        const userResponse = user.toObject();
+        delete (userResponse as any).password;
 
         res.status(200).json({
             message: "Login successful",
-            user
+            user: userResponse
         });
 
     } catch (error: any) {
+        console.error("Login Error:", error);
         res.status(500).json({ message: "Login Error", error: error.message });
     }
 };
@@ -114,6 +133,7 @@ export const getMe = async (req: AuthRequest, res: Response) => {
     try {
         const userId = typeof req.user === 'object' ? req.user.id : req.user;
         const user = await User.findById(userId).select('-password');
+        
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
@@ -123,9 +143,7 @@ export const getMe = async (req: AuthRequest, res: Response) => {
     }
 };
 
-/**
- * --- UPDATE USER PROFILE ---
- */
+// --- UPDATE USER PROFILE ---
 export const updateUserProfile = async (req: AuthRequest, res: Response) => {
     try {
         const userId = typeof req.user === 'object' ? req.user.id : req.user;
@@ -159,10 +177,10 @@ export const updateUserProfile = async (req: AuthRequest, res: Response) => {
 // --- LOGOUT USER ---
 export const logoutUser = async (req: Request, res: Response) => {
     try {
+        // Clear cookie with same options used to set it
         res.clearCookie("token", {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax"
+            ...cookieOptions,
+            maxAge: 0
         });
         res.status(200).json({ message: "Logged out successfully" });
     } catch (error) {
