@@ -13,12 +13,14 @@ dotenv.config();
 
 const app: Application = express();
 
+// Middleware
 app.use(express.json());
 app.use(cookieParser());
 
-// Update CORS to explicitly allow your frontend domain
+// Robust CORS - Explicitly allowing your frontend domains
 const allowedOrigins = [
     'https://bank-cfwv.vercel.app', 
+    'https://amazing-tulumba-29d6c9.netlify.app',
     'http://localhost:5173'
 ].filter(Boolean);
 
@@ -35,17 +37,29 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+// Connect to DB
 connectDB();
 
-// 1. ADD THIS ROOT ROUTE: This fixes the 404 error on bank-o2xx.vercel.app
+// 1. ROOT ROUTE: Fixes the 404 when you visit the base URL
 app.get('/', (req: Request, res: Response) => {
-    res.status(200).json({ message: "Nova Bank Backend is Live" });
+    res.status(200).json({ 
+        success: true, 
+        message: "Nova Bank Backend is Live and Operational" 
+    });
 });
 
-// 2. API ROUTES: Matches your frontend calls
+// 2. API ROUTES
 app.use('/api/auth', authRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/transactions', transactionRoutes);
 
-// 3. EXPORT FOR VERCEL: Critical step
+// Global Error Handler
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    res.status(err.statusCode || 500).json({
+        success: false,
+        message: err.message || 'Internal Server Error',
+    });
+});
+
+// Export for Vercel
 export default app;
