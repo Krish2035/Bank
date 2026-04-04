@@ -3,9 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "install-all": "npm install --legacy-peer-deps && cd frontend && npm install --legacy-peer-deps && cd ../backend && npm install --legacy-peer-deps",
-    "build": "cd frontend && npm install --legacy-peer-deps && npm run build",
-    "install": "npm install --legacy-peer-deps"
+    "build": "cd frontend && npm install --legacy-peer-deps && npm run build"
   },
   "engines": {
     "node": "20.x"
