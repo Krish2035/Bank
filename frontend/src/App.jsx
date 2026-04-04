@@ -4,7 +4,7 @@ import { useAuth } from './context/AuthContext';
 
 // Import your Pages
 import Login from './pages/Login';
-import Signup from './pages/SignUp';
+import Signup from './pages/Signup'; // FIXED: Changed 'SignUp' to 'Signup'
 import Dashboard from './pages/Dashboard';
 
 /**
@@ -36,7 +36,7 @@ const ProtectedRoute = ({ children }) => {
 const PublicRoute = ({ children }) => {
   const { user, loading } = useAuth();
 
-  if (loading) return null; // Or a smaller spinner
+  if (loading) return null; 
 
   if (user) {
     return <Navigate to="/dashboard" replace />;
@@ -48,10 +48,8 @@ const PublicRoute = ({ children }) => {
 function App() {
   return (
     <Router>
-      {/* Main wrapper with a dark theme for the banking UI */}
       <div className="min-h-screen bg-slate-950 text-slate-200 selection:bg-blue-500/30">
         <Routes>
-          {/* Public Routes - Wrapped in PublicRoute to prevent double-login */}
           <Route 
             path="/login" 
             element={
@@ -69,7 +67,6 @@ function App() {
             } 
           />
 
-          {/* Protected Routes - The Core Banking UI */}
           <Route 
             path="/dashboard" 
             element={
@@ -79,7 +76,6 @@ function App() {
             } 
           />
 
-          {/* Global Redirects */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
