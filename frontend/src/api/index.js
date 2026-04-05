@@ -1,42 +1,26 @@
 import axios from 'axios';
 
-/**
- * baseURL Logic:
- * 1. Prioritize the Environment Variable (VITE_API_URL).
- * 2. Fallback to the production URL with the '/api' prefix.
- * 3. Fallback to localhost for development.
- */
-const baseURL = import.meta.env.VITE_API_URL || 
-                (import.meta.env.PROD 
-                    ? 'https://bank-o2xx.vercel.app/api' 
-                    : 'http://localhost:5000/api');
+// Check if we are in production or local development
+const isProd = import.meta.env.PROD;
 
 const API = axios.create({
-    baseURL: baseURL, 
-    withCredentials: true, // CRITICAL: Allows browser to store/send JWT cookies
+    // IMPORTANT: Both URLs must end with /api
+    baseURL: isProd 
+        ? 'https://bank-o2xx.vercel.app/api' 
+        : 'http://localhost:5000/api', 
+    withCredentials: true,
     headers: {
         'Content-Type': 'application/json'
     }
 });
 
-/**
- * Response Interceptor:
- * Automatically handles session expiration. If the backend returns 401 (Unauthorized),
- * it redirects the user to the login page.
- */
+// Interceptor to handle 401 Unauthorized errors
 API.interceptors.response.use(
     (response) => response,
     (error) => {
-        // Only redirect if we aren't already on the login or signup page
-        const isAuthPage = window.location.pathname.includes('/login') || 
-                           window.location.pathname.includes('/signup');
-
-        if (error.response?.status === 401 && !isAuthPage) {
-            // Clear any local storage if necessary
-            localStorage.removeItem('user'); 
+        if (error.response?.status === 401 && !window.location.pathname.includes('/login')) {
             window.location.href = '/login';
         }
-        
         return Promise.reject(error);
     }
 );
