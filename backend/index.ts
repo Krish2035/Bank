@@ -1,15 +1,9 @@
-import express, { 
-    type Request, 
-    type Response, 
-    type Application, 
-    type NextFunction 
-} from 'express';
+import express, { type Request, type Response, type Application, type NextFunction } from 'express';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 
-// ESM compatibility: ensure .js extensions are present
 import authRoutes from './routes/authRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import transactionRoutes from './routes/transactionRoutes.js';
@@ -19,8 +13,8 @@ dotenv.config();
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI as string;
+const BACKEND_URL = 'https://bank-o2xx.vercel.app'; 
 
-// 1. Database Connection Helper (Serverless Optimized)
 const connectDB = async () => {
     if (mongoose.connection.readyState >= 1) return;
     try {
@@ -33,11 +27,9 @@ const connectDB = async () => {
     }
 };
 
-// 2. Basic Middleware
 app.use(express.json());
 app.use(cookieParser());
 
-// 3. Advanced CORS Configuration
 const allowedOrigins = [
     'https://bank-cfwv.vercel.app', 
     'http://localhost:5173',
@@ -59,7 +51,7 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 }));
 
-// 4. Preflight (OPTIONS) - Manual fallback for extra stability
+// Robust Preflight Handling
 app.options('*', (req: Request, res: Response) => {
     const origin = req.headers.origin;
     if (origin && (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app'))) {
@@ -71,27 +63,25 @@ app.options('*', (req: Request, res: Response) => {
     res.sendStatus(204); 
 });
 
-// 5. Middleware to ensure DB connection on every request (Essential for Vercel)
+// Database connection middleware for Serverless
 app.use(async (_req, _res, next) => {
     await connectDB();
     next();
 });
 
-// 6. API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/transactions', transactionRoutes);
 
-// Root Health Check
 app.get('/', (_req: Request, res: Response) => {
     res.status(200).json({ 
         status: 'success', 
         message: 'Nova Bank API is live',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        backend_url: BACKEND_URL
     });
 });
 
-// 7. Global Error Handler
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error("Server Error:", err.message);
     res.status(err.statusCode || 500).json({
@@ -100,10 +90,11 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     });
 });
 
-// Local development listener
 if (process.env.NODE_ENV !== 'production') {
-    app.listen(PORT, () => console.log(`🚀 Local Server running on port ${PORT}`));
+    app.listen(PORT, () => {
+        console.log(`🚀 Local Server: http://localhost:${PORT}`);
+        console.log(`🌍 Live Link: ${BACKEND_URL}`);
+    });
 }
 
-// Export for Vercel Serverless
 export default app;
