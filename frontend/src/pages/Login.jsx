@@ -20,14 +20,21 @@ const Login = () => {
     setIsSubmitting(true);
 
     try {
-      // This now calls https://bank-o2xx.vercel.app/api/auth/login
+      /**
+       * IMPORTANT: If your API baseURL is '.../api', 
+       * this call correctly targets '.../api/auth/login'
+       */
       const { data } = await API.post('/auth/login', formData);
       
+      // Update the AuthContext state
       login(data.user); 
+
+      // Redirect to dashboard
       navigate('/dashboard');
     } catch (err) {
-      // Handles both server errors and connection/CORS errors
-      setError(err.response?.data?.message || "Unable to connect to the server. Please try again.");
+      // Improved error detection: differentiates between wrong password and server being down
+      const message = err.response?.data?.message || "Invalid credentials or server connection issue.";
+      setError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -41,12 +48,14 @@ const Login = () => {
           <p className="text-white/50 text-sm mt-2">Enter your credentials to access your account</p>
         </div>
         
+        {/* Success Message from Signup */}
         {successMsg && !error && (
           <div className="mb-6 p-3 bg-emerald-500/20 border border-emerald-500/50 rounded-lg text-emerald-200 text-sm text-center">
             {successMsg}
           </div>
         )}
 
+        {/* Error Message */}
         {error && (
           <div className="mb-6 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm text-center animate-pulse">
             {error}

@@ -21,19 +21,20 @@ const Signup = () => {
 
     try {
       /**
-       * The backend registerUser controller expects:
-       * firstName, lastName, email, password, phone
+       * Hits: https://bank-o2xx.vercel.app/api/auth/signup
+       * The backend expects: firstName, lastName, email, password, phone
        */
       const response = await API.post('/auth/signup', formData);
       
-      if (response.status === 201) {
-        // Success! Navigate to login. 
-        // You could also auto-login the user here using your AuthContext
-        navigate('/login', { state: { message: "Account created successfully! Please log in." } });
+      if (response.status === 201 || response.status === 200) {
+        // Navigate to login with a success state for the toast/message
+        navigate('/login', { 
+          state: { message: "Account created successfully! Please sign in." } 
+        });
       }
     } catch (err) {
-      // Improved error handling to capture backend messages
-      const errorMessage = err.response?.data?.message || "Signup failed. Please try again.";
+      // Capture specific backend validation errors (e.g., "Email already exists")
+      const errorMessage = err.response?.data?.message || "Signup failed. Please check your details and try again.";
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -48,6 +49,7 @@ const Signup = () => {
           <p className="text-white/50 text-sm mt-2">Join Nova Bank and manage your finances securely</p>
         </div>
 
+        {/* Error Alert */}
         {error && (
           <div className="mb-6 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm text-center animate-pulse">
             {error}
@@ -55,12 +57,12 @@ const Signup = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-white/70 text-xs uppercase font-semibold mb-1 ml-1">First Name</label>
+              <label className="block text-white/70 text-[10px] uppercase tracking-widest font-bold mb-1 ml-1">First Name</label>
               <input 
                 type="text"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-white/10"
                 placeholder="John"
                 value={formData.firstName}
                 onChange={(e) => setFormData({...formData, firstName: e.target.value})}
@@ -68,10 +70,10 @@ const Signup = () => {
               />
             </div>
             <div>
-              <label className="block text-white/70 text-xs uppercase font-semibold mb-1 ml-1">Last Name</label>
+              <label className="block text-white/70 text-[10px] uppercase tracking-widest font-bold mb-1 ml-1">Last Name</label>
               <input 
                 type="text"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-white/10"
                 placeholder="Doe"
                 value={formData.lastName}
                 onChange={(e) => setFormData({...formData, lastName: e.target.value})}
@@ -81,10 +83,10 @@ const Signup = () => {
           </div>
 
           <div>
-            <label className="block text-white/70 text-xs uppercase font-semibold mb-1 ml-1">Email Address</label>
+            <label className="block text-white/70 text-[10px] uppercase tracking-widest font-bold mb-1 ml-1">Email Address</label>
             <input 
               type="email"
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-white/10"
               placeholder="john@example.com"
               value={formData.email}
               onChange={(e) => setFormData({...formData, email: e.target.value})}
@@ -93,11 +95,11 @@ const Signup = () => {
           </div>
 
           <div>
-            <label className="block text-white/70 text-xs uppercase font-semibold mb-1 ml-1">Phone Number</label>
+            <label className="block text-white/70 text-[10px] uppercase tracking-widest font-bold mb-1 ml-1">Phone Number</label>
             <input 
               type="tel"
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
-              placeholder="+91 0000000000"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-white/10"
+              placeholder="+91 00000 00000"
               value={formData.phone}
               onChange={(e) => setFormData({...formData, phone: e.target.value})}
               required
@@ -105,22 +107,25 @@ const Signup = () => {
           </div>
 
           <div>
-            <label className="block text-white/70 text-xs uppercase font-semibold mb-1 ml-1">Password</label>
+            <label className="block text-white/70 text-[10px] uppercase tracking-widest font-bold mb-1 ml-1">Password</label>
             <input 
               type="password"
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-white/10"
               placeholder="••••••••"
               value={formData.password}
               onChange={(e) => setFormData({...formData, password: e.target.value})}
               required
+              minLength={6}
             />
           </div>
 
           <button 
             type="submit"
             disabled={loading}
-            className={`w-full py-3 rounded-xl font-bold text-white transition-all shadow-lg shadow-blue-500/20 mt-4
-              ${loading ? 'bg-blue-800 opacity-70 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 active:scale-95'}`}
+            className={`w-full py-3.5 rounded-xl font-bold text-white transition-all shadow-lg mt-4
+              ${loading 
+                ? 'bg-blue-800 opacity-70 cursor-not-allowed' 
+                : 'bg-blue-600 hover:bg-blue-500 hover:shadow-blue-500/30 active:scale-95'}`}
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
@@ -135,8 +140,8 @@ const Signup = () => {
         </form>
 
         <div className="mt-8 pt-6 border-t border-white/10 text-center">
-          <p className="text-white/60 text-sm">
-            Already have an account? <Link to="/login" className="text-blue-400 font-semibold hover:text-blue-300 transition-colors">Sign In</Link>
+          <p className="text-white/40 text-sm">
+            Already have an account? <Link to="/login" className="text-blue-400 font-semibold hover:text-blue-300 transition-colors ml-1">Sign In</Link>
           </p>
         </div>
       </div>
