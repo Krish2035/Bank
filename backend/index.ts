@@ -9,7 +9,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 
-// ESM compatibility: ensure .js extensions are present if using "type": "module"
+// ESM compatibility: ensure .js extensions are present
 import authRoutes from './routes/authRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import transactionRoutes from './routes/transactionRoutes.js';
@@ -20,11 +20,24 @@ const app: Application = express();
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI as string;
 
-// 1. Basic Middleware
+// 1. Database Connection Helper (Serverless Optimized)
+const connectDB = async () => {
+    if (mongoose.connection.readyState >= 1) return;
+    try {
+        mongoose.set('strictQuery', true);
+        if (!MONGO_URI) throw new Error('MONGO_URI is missing');
+        await mongoose.connect(MONGO_URI);
+        console.log('✅ MongoDB Connected');
+    } catch (err: any) {
+        console.error('❌ MongoDB Error:', err.message);
+    }
+};
+
+// 2. Basic Middleware
 app.use(express.json());
 app.use(cookieParser());
 
-// 2. CORS Configuration
+// 3. Advanced CORS Configuration
 const allowedOrigins = [
     'https://bank-cfwv.vercel.app', 
     'http://localhost:5173',
@@ -33,11 +46,8 @@ const allowedOrigins = [
 
 app.use(cors({
     origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps or curl)
         if (!origin) return callback(null, true);
-        
         const isAllowed = allowedOrigins.includes(origin) || origin.endsWith('.vercel.app');
-        
         if (isAllowed) {
             callback(null, true);
         } else {
@@ -49,8 +59,7 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 }));
 
-// 3. Robust Preflight (OPTIONS) Handling
-// This explicitly handles the browser "handshake" before the actual POST request
+// 4. Preflight (OPTIONS) - Manual fallback for extra stability
 app.options('*', (req: Request, res: Response) => {
     const origin = req.headers.origin;
     if (origin && (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app'))) {
@@ -62,7 +71,13 @@ app.options('*', (req: Request, res: Response) => {
     res.sendStatus(204); 
 });
 
-// 4. API Routes
+// 5. Middleware to ensure DB connection on every request (Essential for Vercel)
+app.use(async (_req, _res, next) => {
+    await connectDB();
+    next();
+});
+
+// 6. API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/transactions', transactionRoutes);
@@ -76,7 +91,7 @@ app.get('/', (_req: Request, res: Response) => {
     });
 });
 
-// 5. Global Error Handler
+// 7. Global Error Handler
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error("Server Error:", err.message);
     res.status(err.statusCode || 500).json({
@@ -85,28 +100,10 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     });
 });
 
-// 6. MongoDB Connection Logic (Optimized for Serverless)
-const connectDB = async () => {
-    if (mongoose.connection.readyState >= 1) return;
-    
-    try {
-        mongoose.set('strictQuery', true);
-        if (!MONGO_URI) throw new Error('MONGO_URI missing in environment variables');
-        
-        await mongoose.connect(MONGO_URI);
-        console.log('✅ Connected to MongoDB');
-    } catch (err: any) {
-        console.error('❌ MongoDB Connection Error:', err.message);
-    }
-};
-
-// Initialize DB for Serverless
-connectDB();
-
-// Only start the listener if running locally
+// Local development listener
 if (process.env.NODE_ENV !== 'production') {
     app.listen(PORT, () => console.log(`🚀 Local Server running on port ${PORT}`));
 }
 
-// Export for Vercel
+// Export for Vercel Serverless
 export default app;
