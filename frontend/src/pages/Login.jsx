@@ -12,7 +12,6 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Check if a success message was passed from the Signup page
   const successMsg = location.state?.message;
 
   const handleSubmit = async (e) => {
@@ -21,19 +20,14 @@ const Login = () => {
     setIsSubmitting(true);
 
     try {
-      /**
-       * Backend returns: { message: "...", user: { ... } }
-       * The cookie is handled automatically by the browser because of withCredentials: true
-       */
+      // This now calls https://bank-o2xx.vercel.app/api/auth/login
       const { data } = await API.post('/auth/login', formData);
       
-      // Update the AuthContext state
       login(data.user); 
-
-      // Redirect to dashboard
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.message || "Invalid email or password. Please try again.");
+      // Handles both server errors and connection/CORS errors
+      setError(err.response?.data?.message || "Unable to connect to the server. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -47,14 +41,12 @@ const Login = () => {
           <p className="text-white/50 text-sm mt-2">Enter your credentials to access your account</p>
         </div>
         
-        {/* Success Message from Signup */}
         {successMsg && !error && (
           <div className="mb-6 p-3 bg-emerald-500/20 border border-emerald-500/50 rounded-lg text-emerald-200 text-sm text-center">
             {successMsg}
           </div>
         )}
 
-        {/* Error Message */}
         {error && (
           <div className="mb-6 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm text-center animate-pulse">
             {error}
