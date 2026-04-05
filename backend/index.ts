@@ -13,7 +13,7 @@ dotenv.config();
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI as string;
-const BACKEND_URL = 'https://bank-o2xx.vercel.app'; 
+const BACKEND_URL = 'https://bank-o2xx.vercel.app/api'; 
 
 const connectDB = async () => {
     if (mongoose.connection.readyState >= 1) return;
