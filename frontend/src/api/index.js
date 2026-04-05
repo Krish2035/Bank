@@ -1,11 +1,5 @@
 import axios from 'axios';
 
-/**
- * baseURL Logic:
- * 1. Prioritize the Vercel Environment Variable.
- * 2. Fallback to the production backend URL with /api.
- * 3. Default to localhost for development.
- */
 const baseURL = import.meta.env.VITE_API_URL || 
                 (import.meta.env.PROD 
                     ? 'https://bank-o2xx.vercel.app/api' 
@@ -13,16 +7,12 @@ const baseURL = import.meta.env.VITE_API_URL ||
 
 const API = axios.create({
     baseURL: baseURL, 
-    withCredentials: true, // Crucial for sending JWT cookies across domains
+    withCredentials: true,
     headers: {
         'Content-Type': 'application/json'
     }
 });
 
-/**
- * Response Interceptor:
- * Handles 401 Unauthorized errors by redirecting to login.
- */
 API.interceptors.response.use(
     (response) => response,
     (error) => {
