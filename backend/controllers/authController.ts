@@ -19,13 +19,12 @@ const generateAccountNumber = (): string => {
 
 /**
  * Helper: Centralized Cookie Configuration
- * This ensures cookies work across different Vercel domains
  */
 const cookieOptions: any = {
     httpOnly: true,
-    secure: true, // Required for sameSite: "none"
-    sameSite: "none", // Critical for Vercel cross-domain authentication
-    maxAge: 24 * 60 * 60 * 1000, // 1 day
+    secure: true, 
+    sameSite: "none", 
+    maxAge: 24 * 60 * 60 * 1000, 
 };
 
 // --- REGISTER USER ---
@@ -38,7 +37,6 @@ export const registerUser = async (req: Request, res: Response) => {
             return res.status(400).json({ message: "User already registered with this email" });
         }
 
-        // Hash Password
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -49,7 +47,7 @@ export const registerUser = async (req: Request, res: Response) => {
             password: hashedPassword,
             phoneNumber: phone,
             accountNumber: generateAccountNumber(),
-            balance: 1000 // Welcome bonus
+            balance: 1000 
         });
 
         await newUser.save();
@@ -65,21 +63,20 @@ export const registerUser = async (req: Request, res: Response) => {
             { expiresIn: '1d' }
         );
 
-        // Set Cookie
         res.cookie("token", token, cookieOptions);
 
-        // Remove password from response
         const userResponse = newUser.toObject();
         delete (userResponse as any).password;
 
         res.status(201).json({
+            success: true,
             message: "Account created successfully",
             user: userResponse
         });
 
     } catch (error: any) {
         console.error("Registration Error:", error);
-        res.status(500).json({ message: "Registration failed", error: error.message });
+        res.status(500).json({ success: false, message: "Registration failed", error: error.message });
     }
 };
 
@@ -88,7 +85,6 @@ export const loginUser = async (req: Request, res: Response) => {
     try {
         const { email, password } = req.body;
 
-        // Find user and explicitly select password for comparison
         const user = await User.findOne({ email }).select('+password');
         if (!user) {
             return res.status(400).json({ message: "Invalid Email or Password" });
@@ -110,25 +106,56 @@ export const loginUser = async (req: Request, res: Response) => {
             { expiresIn: '1d' }
         );
 
-        // Set Cookie
         res.cookie("token", token, cookieOptions);
 
-        // Remove password from response object
         const userResponse = user.toObject();
         delete (userResponse as any).password;
 
         res.status(200).json({
+            success: true,
             message: "Login successful",
             user: userResponse
         });
 
     } catch (error: any) {
         console.error("Login Error:", error);
-        res.status(500).json({ message: "Login Error", error: error.message });
+        res.status(500).json({ success: false, message: "Login Error", error: error.message });
     }
 };
 
-// --- GET CURRENT USER (Auth Check) ---
+// --- DEPOSIT MONEY (Add Money) ---
+// This is the function that was missing causing your "Server Busy" error
+export const depositMoney = async (req: Request, res: Response) => {
+    try {
+        const { userId, amount } = req.body;
+
+        if (!userId || !amount) {
+            return res.status(400).json({ success: false, message: "Missing User ID or Amount" });
+        }
+
+        // Increment the balance field
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { $inc: { balance: amount } }, 
+            { new: true, runValidators: true }
+        ).select('-password');
+
+        if (!updatedUser) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Money added successfully",
+            user: updatedUser 
+        });
+    } catch (error: any) {
+        console.error("Deposit Error:", error.message);
+        res.status(500).json({ success: false, message: "Internal Server Error", error: error.message });
+    }
+};
+
+// --- GET CURRENT USER ---
 export const getMe = async (req: AuthRequest, res: Response) => {
     try {
         const userId = typeof req.user === 'object' ? req.user.id : req.user;
@@ -166,24 +193,24 @@ export const updateUserProfile = async (req: AuthRequest, res: Response) => {
         }
 
         res.status(200).json({
+            success: true,
             message: "Profile updated successfully",
             user: updatedUser
         });
     } catch (error: any) {
-        res.status(500).json({ message: "Update failed", error: error.message });
+        res.status(500).json({ success: false, message: "Update failed", error: error.message });
     }
 };
 
 // --- LOGOUT USER ---
 export const logoutUser = async (req: Request, res: Response) => {
     try {
-        // Clear cookie with same options used to set it
         res.clearCookie("token", {
             ...cookieOptions,
             maxAge: 0
         });
-        res.status(200).json({ message: "Logged out successfully" });
+        res.status(200).json({ success: true, message: "Logged out successfully" });
     } catch (error) {
-        res.status(500).json({ message: "Logout failed" });
+        res.status(500).json({ success: false, message: "Logout failed" });
     }
 };
