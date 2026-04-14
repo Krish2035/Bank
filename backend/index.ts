@@ -38,28 +38,25 @@ app.use(cookieParser());
 
 /**
  * CORS Configuration
- * Designed to handle Web, Expo Dev, and Physical Mobile Devices
+ * Optimized for Mobile: Allows undefined origins (mobile apps) and local IPs
  */
 const allowedOrigins = [
     'https://bank-cfwv.vercel.app', 
     'http://localhost:5173',
     'http://localhost:8081', 
-    'http://localhost:19000', // Expo Go default
+    'http://localhost:19000',
     process.env.CLIENT_URL 
 ].filter(Boolean) as string[];
 
 app.use(cors({
     origin: (origin, callback) => {
-        // Allow mobile/non-browser requests (origin is undefined)
         if (!origin) return callback(null, true);
-
         const isAllowed = allowedOrigins.includes(origin) || origin.endsWith('.vercel.app');
-        const isLocalIP = origin.startsWith('http://192.168.'); // For physical phone testing
+        const isLocalIP = origin.startsWith('http://192.168.') || origin.startsWith('http://10.0.'); 
 
         if (isAllowed || isLocalIP) {
             callback(null, true);
         } else {
-            console.log('CORS Rejected Origin:', origin);
             callback(new Error('Not allowed by CORS policy'));
         }
     },
@@ -69,23 +66,7 @@ app.use(cors({
 }));
 
 /**
- * Manual Preflight Handling
- * Ensures mobile requests don't hang on OPTIONS checks
- */
-app.options('*', (req: Request, res: Response) => {
-    const origin = req.headers.origin;
-    if (origin) {
-        res.header('Access-Control-Allow-Origin', origin);
-    }
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
-    res.sendStatus(204); 
-});
-
-/**
  * DB Connection Middleware
- * Connects to DB before processing any API routes
  */
 app.use(async (_req, _res, next) => {
     await connectDB();
@@ -102,8 +83,19 @@ app.get('/', (_req: Request, res: Response) => {
     res.status(200).json({ 
         status: 'success', 
         message: 'Nova Bank API is live',
-        timestamp: new Date().toISOString(),
-        backend_url: BACKEND_URL
+        timestamp: new Date().toISOString()
+    });
+});
+
+/**
+ * FIX: Catch-all 404 Handler for JSON
+ * This prevents "Received HTML instead of JSON" errors in React Native.
+ * If the app calls a wrong URL, it gets a JSON error instead of an HTML page.
+ */
+app.use((_req: Request, res: Response) => {
+    res.status(404).json({
+        success: false,
+        message: `Route not found: ${_req.originalUrl}. Check your endpoint name in the mobile app.`
     });
 });
 
@@ -120,7 +112,6 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 if (process.env.NODE_ENV !== 'production') {
     app.listen(PORT, () => {
         console.log(`🚀 Local Server: http://localhost:${PORT}`);
-        console.log(`🌍 Live Link: ${BACKEND_URL}`);
     });
 }
 

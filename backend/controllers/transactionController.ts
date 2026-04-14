@@ -55,10 +55,11 @@ export const addMoney = async (req: AuthRequest, res: Response) => {
 
         await session.commitTransaction();
 
+        // Returning 'user' object so frontend can update state via login()
         res.status(200).json({
             success: true,
             message: "Money added to your wallet successfully!",
-            newBalance: user.balance,
+            user: user, 
             transactionId: transaction._id
         });
 
@@ -72,7 +73,7 @@ export const addMoney = async (req: AuthRequest, res: Response) => {
 };
 
 /**
- * Executes a GPay-style transfer using a Phone Number.
+ * Executes a transfer using a Phone Number.
  */
 export const transferByPhone = async (req: AuthRequest, res: Response) => {
     const session = await mongoose.startSession();
@@ -135,8 +136,8 @@ export const transferByPhone = async (req: AuthRequest, res: Response) => {
         res.status(200).json({ 
             success: true,
             message: "Transfer successful!", 
-            transactionId: transaction._id,
-            newBalance: sender.balance 
+            user: sender, // Returns updated sender balance
+            transactionId: transaction._id
         });
 
     } catch (error: any) {
@@ -155,11 +156,12 @@ export const payUtilityBill = async (req: AuthRequest, res: Response) => {
     session.startTransaction();
 
     try {
-        const { serviceProvider, amount, consumerId } = req.body;
+        // Updated field names to match common utility payment logic
+        const { serviceProvider, category, amount, consumerId } = req.body;
         const senderId = req.user?.id;
 
-        if (!serviceProvider || !amount || !consumerId) {
-            return res.status(400).json({ success: false, message: "All bill details are required" });
+        if (!amount || !consumerId) {
+            return res.status(400).json({ success: false, message: "Consumer ID and amount are required" });
         }
 
         const billAmount = Number(amount);
@@ -179,8 +181,8 @@ export const payUtilityBill = async (req: AuthRequest, res: Response) => {
             sender: senderId,
             amount: billAmount,
             type: 'bill_pay',
-            category: 'Utility',
-            description: `${serviceProvider} Bill Payment - ID: ${consumerId}`,
+            category: category || 'Utility',
+            description: `${serviceProvider || category} Bill Payment - ID: ${consumerId}`,
             status: 'completed',
             metadata: {
                 serviceProvider,
@@ -197,9 +199,9 @@ export const payUtilityBill = async (req: AuthRequest, res: Response) => {
 
         res.status(200).json({ 
             success: true,
-            message: `${serviceProvider} bill paid successfully!`, 
-            transactionId: transaction._id,
-            newBalance: sender.balance 
+            message: `Bill paid successfully!`, 
+            user: sender, // Critical for frontend balance update
+            transactionId: transaction._id
         });
 
     } catch (error: any) {
