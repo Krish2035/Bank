@@ -8,7 +8,9 @@ import jwt from 'jsonwebtoken';
  * Custom Interface for requests containing user data
  */
 interface AuthRequest extends Request {
-    user?: any;
+    user?: {
+        id: string;
+    };
 }
 
 /**
@@ -24,7 +26,7 @@ const generateAccountNumber = (): string => {
 const cookieOptions: any = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production", 
-    sameSite: "none", 
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", 
     maxAge: 24 * 60 * 60 * 1000, 
 };
 
@@ -54,19 +56,22 @@ export const registerUser = async (req: Request, res: Response) => {
         await newUser.save();
 
         const jwtSecret = process.env.JWT_SECRET;
-        if (!jwtSecret) throw new Error("JWT_SECRET is missing");
+        if (!jwtSecret) throw new Error("JWT_SECRET is missing from environment variables");
 
         const token = jwt.sign({ id: newUser._id }, jwtSecret, { expiresIn: '1d' });
+        
+        // Set cookie for Web clients
         res.cookie("token", token, cookieOptions);
 
         const userResponse = newUser.toObject();
         delete (userResponse as any).password;
 
+        // Return token in body for Mobile (React Native) clients
         res.status(201).json({
             success: true,
             message: "Account created successfully",
             user: userResponse,
-            token: token // Required for Mobile Auth
+            token: token 
         });
     } catch (error: any) {
         res.status(500).json({ success: false, message: "Registration failed", error: error.message });
@@ -87,12 +92,14 @@ export const loginUser = async (req: Request, res: Response) => {
         if (!jwtSecret) throw new Error("JWT_SECRET not defined");
 
         const token = jwt.sign({ id: user._id }, jwtSecret, { expiresIn: '1d' });
+        
+        // Set cookie for Web clients
         res.cookie("token", token, cookieOptions);
 
         const userResponse = user.toObject();
         delete (userResponse as any).password;
 
-        // FIXED: Explicitly sending token in JSON body for React Native AsyncStorage
+        // FIXED: Sending token in JSON body for Mobile Auth (AsyncStorage)
         res.status(200).json({
             success: true,
             message: "Login successful",
@@ -138,7 +145,6 @@ export const depositMoney = async (req: Request, res: Response) => {
             user: updatedUser 
         });
     } catch (error: any) {
-        console.error("Deposit Error:", error.message);
         res.status(500).json({ success: false, message: "Internal Server Error", error: error.message });
     }
 };
@@ -146,7 +152,8 @@ export const depositMoney = async (req: Request, res: Response) => {
 // --- GET CURRENT USER ---
 export const getMe = async (req: AuthRequest, res: Response) => {
     try {
-        const userId = req.user?.id || req.user;
+        // Handle both object and string id formats from middleware
+        const userId = typeof req.user === 'object' ? req.user.id : req.user;
         const user = await User.findById(userId).select('-password');
         
         if (!user) return res.status(404).json({ success: false, message: "User not found" });
@@ -159,7 +166,7 @@ export const getMe = async (req: AuthRequest, res: Response) => {
 // --- UPDATE USER PROFILE ---
 export const updateUserProfile = async (req: AuthRequest, res: Response) => {
     try {
-        const userId = req.user?.id || req.user;
+        const userId = typeof req.user === 'object' ? req.user.id : req.user;
         const { firstName, lastName, phoneNumber } = req.body;
 
         const updatedUser = await User.findByIdAndUpdate(
