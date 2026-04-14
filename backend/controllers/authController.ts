@@ -1,5 +1,6 @@
 import { type Request, type Response } from 'express';
 import User from '../models/User.js';
+import Transaction from '../models/Transaction.js'; 
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
@@ -22,7 +23,7 @@ const generateAccountNumber = (): string => {
  */
 const cookieOptions: any = {
     httpOnly: true,
-    secure: true, 
+    secure: process.env.NODE_ENV === "production", 
     sameSite: "none", 
     maxAge: 24 * 60 * 60 * 1000, 
 };
@@ -34,7 +35,7 @@ export const registerUser = async (req: Request, res: Response) => {
 
         const userExists = await User.findOne({ email });
         if (userExists) {
-            return res.status(400).json({ message: "User already registered with this email" });
+            return res.status(400).json({ success: false, message: "User already registered with this email" });
         }
 
         const salt = await bcrypt.genSalt(10);
@@ -47,22 +48,15 @@ export const registerUser = async (req: Request, res: Response) => {
             password: hashedPassword,
             phoneNumber: phone,
             accountNumber: generateAccountNumber(),
-            balance: 1000 
+            balance: 1000 // Welcome bonus
         });
 
         await newUser.save();
 
         const jwtSecret = process.env.JWT_SECRET;
-        if (!jwtSecret) {
-            throw new Error("JWT_SECRET is missing from server environment");
-        }
+        if (!jwtSecret) throw new Error("JWT_SECRET is missing");
 
-        const token = jwt.sign(
-            { id: newUser._id }, 
-            jwtSecret, 
-            { expiresIn: '1d' }
-        );
-
+        const token = jwt.sign({ id: newUser._id }, jwtSecret, { expiresIn: '1d' });
         res.cookie("token", token, cookieOptions);
 
         const userResponse = newUser.toObject();
@@ -71,11 +65,10 @@ export const registerUser = async (req: Request, res: Response) => {
         res.status(201).json({
             success: true,
             message: "Account created successfully",
-            user: userResponse
+            user: userResponse,
+            token: token // Required for Mobile Auth
         });
-
     } catch (error: any) {
-        console.error("Registration Error:", error);
         res.status(500).json({ success: false, message: "Registration failed", error: error.message });
     }
 };
@@ -84,47 +77,34 @@ export const registerUser = async (req: Request, res: Response) => {
 export const loginUser = async (req: Request, res: Response) => {
     try {
         const { email, password } = req.body;
-
         const user = await User.findOne({ email }).select('+password');
-        if (!user) {
-            return res.status(400).json({ message: "Invalid Email or Password" });
-        }
-
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return res.status(400).json({ message: "Invalid Email or Password" });
+        
+        if (!user || !(await bcrypt.compare(password, user.password))) {
+            return res.status(400).json({ success: false, message: "Invalid Email or Password" });
         }
 
         const jwtSecret = process.env.JWT_SECRET;
-        if (!jwtSecret) {
-            throw new Error("JWT_SECRET is not defined");
-        }
+        if (!jwtSecret) throw new Error("JWT_SECRET not defined");
 
-        const token = jwt.sign(
-            { id: user._id }, 
-            jwtSecret, 
-            { expiresIn: '1d' }
-        );
-
+        const token = jwt.sign({ id: user._id }, jwtSecret, { expiresIn: '1d' });
         res.cookie("token", token, cookieOptions);
 
         const userResponse = user.toObject();
         delete (userResponse as any).password;
 
+        // FIXED: Explicitly sending token in JSON body for React Native AsyncStorage
         res.status(200).json({
             success: true,
             message: "Login successful",
-            user: userResponse
+            user: userResponse,
+            token: token 
         });
-
     } catch (error: any) {
-        console.error("Login Error:", error);
         res.status(500).json({ success: false, message: "Login Error", error: error.message });
     }
 };
 
-// --- DEPOSIT MONEY (Add Money) ---
-// This is the function that was missing causing your "Server Busy" error
+// --- DEPOSIT MONEY ---
 export const depositMoney = async (req: Request, res: Response) => {
     try {
         const { userId, amount } = req.body;
@@ -133,7 +113,6 @@ export const depositMoney = async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, message: "Missing User ID or Amount" });
         }
 
-        // Increment the balance field
         const updatedUser = await User.findByIdAndUpdate(
             userId,
             { $inc: { balance: amount } }, 
@@ -143,6 +122,15 @@ export const depositMoney = async (req: Request, res: Response) => {
         if (!updatedUser) {
             return res.status(404).json({ success: false, message: "User not found" });
         }
+
+        await Transaction.create({
+            sender: userId,
+            amount: amount,
+            type: 'deposit',
+            status: 'completed',
+            category: 'Other',
+            description: `Self-deposit of ₹${amount}`
+        });
 
         res.status(200).json({
             success: true,
@@ -158,39 +146,29 @@ export const depositMoney = async (req: Request, res: Response) => {
 // --- GET CURRENT USER ---
 export const getMe = async (req: AuthRequest, res: Response) => {
     try {
-        const userId = typeof req.user === 'object' ? req.user.id : req.user;
+        const userId = req.user?.id || req.user;
         const user = await User.findById(userId).select('-password');
         
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
+        if (!user) return res.status(404).json({ success: false, message: "User not found" });
         res.status(200).json(user);
     } catch (error: any) {
-        res.status(500).json({ message: "Authorization Error", error: error.message });
+        res.status(500).json({ success: false, message: "Authorization Error", error: error.message });
     }
 };
 
 // --- UPDATE USER PROFILE ---
 export const updateUserProfile = async (req: AuthRequest, res: Response) => {
     try {
-        const userId = typeof req.user === 'object' ? req.user.id : req.user;
+        const userId = req.user?.id || req.user;
         const { firstName, lastName, phoneNumber } = req.body;
 
         const updatedUser = await User.findByIdAndUpdate(
             userId,
-            { 
-                $set: { 
-                    firstName, 
-                    lastName, 
-                    phoneNumber 
-                } 
-            },
+            { $set: { firstName, lastName, phoneNumber } },
             { new: true, runValidators: true }
         ).select('-password');
 
-        if (!updatedUser) {
-            return res.status(404).json({ message: "User not found" });
-        }
+        if (!updatedUser) return res.status(404).json({ success: false, message: "User not found" });
 
         res.status(200).json({
             success: true,
@@ -205,10 +183,7 @@ export const updateUserProfile = async (req: AuthRequest, res: Response) => {
 // --- LOGOUT USER ---
 export const logoutUser = async (req: Request, res: Response) => {
     try {
-        res.clearCookie("token", {
-            ...cookieOptions,
-            maxAge: 0
-        });
+        res.clearCookie("token", { ...cookieOptions, maxAge: 0 });
         res.status(200).json({ success: true, message: "Logged out successfully" });
     } catch (error) {
         res.status(500).json({ success: false, message: "Logout failed" });

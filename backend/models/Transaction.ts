@@ -30,6 +30,9 @@ export type TTransactionType = typeof TransactionTypes[number];
 export type TTransactionStatus = typeof TransactionStatuses[number];
 export type TTransactionCategory = typeof TransactionCategories[number];
 
+/**
+ * Interface representing the Transaction document
+ */
 export interface ITransaction extends Document {
     sender: mongoose.Types.ObjectId;
     receiver?: mongoose.Types.ObjectId;
@@ -45,10 +48,10 @@ export interface ITransaction extends Document {
     };
     createdAt: Date;
     updatedAt: Date;
-    // CRITICAL FIX: Mark __v as optional so it can be safely deleted in toJSON
     __v?: number;
 }
 
+// Define the Schema
 const TransactionSchema: Schema<ITransaction> = new Schema(
     {
         sender: { 
@@ -74,7 +77,7 @@ const TransactionSchema: Schema<ITransaction> = new Schema(
         status: { 
             type: String, 
             enum: TransactionStatuses, 
-            default: 'pending' 
+            default: 'completed' // Usually completed for manual deposits
         },
         category: {
             type: String,
@@ -97,7 +100,6 @@ const TransactionSchema: Schema<ITransaction> = new Schema(
         timestamps: true,
         toJSON: {
             transform: (_doc, ret) => {
-                // This now works without TS2790 error
                 delete ret.__v;
                 return ret;
             }
@@ -107,6 +109,7 @@ const TransactionSchema: Schema<ITransaction> = new Schema(
 
 /**
  * Indexes for high-performance queries
+ * Crucial for mobile app "Recent Transactions" lists
  */
 TransactionSchema.index({ sender: 1, createdAt: -1 });
 TransactionSchema.index({ receiver: 1, createdAt: -1 });
@@ -114,6 +117,7 @@ TransactionSchema.index({ status: 1 });
 TransactionSchema.index({ "metadata.phoneNumber": 1 }, { sparse: true });
 TransactionSchema.index({ "metadata.billId": 1 }, { sparse: true });
 
+// Export the Model
 const Transaction: Model<ITransaction> = mongoose.models.Transaction || mongoose.model<ITransaction>('Transaction', TransactionSchema);
 
 export default Transaction;

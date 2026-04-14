@@ -1,9 +1,11 @@
 import { type Request, type Response } from 'express';
 import mongoose from 'mongoose';
-import User from '../models/User.js'; // ESM requires .js extension
-import Transaction from '../models/Transaction.js'; // ESM requires .js extension
+import User from '../models/User.js';
+import Transaction from '../models/Transaction.js';
 
-// Interface to handle the user object from your protect middleware
+/**
+ * Interface to handle the user object from your protect middleware
+ */
 interface AuthRequest extends Request {
     user?: { id: string };
 }
@@ -43,11 +45,9 @@ export const addMoney = async (req: AuthRequest, res: Response) => {
             status: 'completed',
             metadata: {
                 method: 'Nova Gateway',
-                timestamp: new Date()
             }
         }], { session });
 
-        // FIX TS18048: Check if transaction exists before accessing _id
         const transaction = createdTransactions[0];
         if (!transaction) {
             throw new Error("Failed to create transaction record");
@@ -105,6 +105,7 @@ export const transferByPhone = async (req: AuthRequest, res: Response) => {
             throw new Error("Insufficient balance for this transaction");
         }
 
+        // Atomic update of balances
         sender.balance -= transferAmount;
         await sender.save({ session });
 
@@ -124,7 +125,6 @@ export const transferByPhone = async (req: AuthRequest, res: Response) => {
             }
         }], { session });
 
-        // FIX TS18048: Explicit check for transaction record
         const transaction = createdTransactions[0];
         if (!transaction) {
             throw new Error("Transaction record could not be generated");
@@ -188,7 +188,6 @@ export const payUtilityBill = async (req: AuthRequest, res: Response) => {
             }
         }], { session });
 
-        // FIX TS18048: Explicit check for bill payment record
         const transaction = createdTransactions[0];
         if (!transaction) {
             throw new Error("Bill payment record creation failed");
@@ -225,14 +224,17 @@ export const getTransactionHistory = async (req: AuthRequest, res: Response) => 
         .populate('receiver', 'firstName lastName phoneNumber')
         .sort({ createdAt: -1 });
 
-        res.status(200).json(transactions);
+        res.status(200).json({
+            success: true,
+            transactions
+        });
     } catch (error) {
         res.status(500).json({ success: false, message: "Failed to fetch history" });
     }
 };
 
 /**
- * Quick Lookup for UI
+ * Quick Lookup for UI (Verification before transfer)
  */
 export const lookupUserByPhone = async (req: AuthRequest, res: Response) => {
     try {
@@ -243,7 +245,10 @@ export const lookupUserByPhone = async (req: AuthRequest, res: Response) => {
             return res.status(404).json({ success: false, message: "No user found with this number" });
         }
 
-        res.json(user);
+        res.status(200).json({
+            success: true,
+            user
+        });
     } catch (error) {
         res.status(500).json({ success: false, message: "Internal server error" });
     }

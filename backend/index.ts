@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 
+// Route Imports
 import authRoutes from './routes/authRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import transactionRoutes from './routes/transactionRoutes.js';
@@ -15,11 +16,15 @@ const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI as string;
 const BACKEND_URL = 'https://bank-o2xx.vercel.app'; 
 
+/**
+ * MongoDB Connection Logic
+ * Optimized for Vercel Serverless (checks readyState)
+ */
 const connectDB = async () => {
     if (mongoose.connection.readyState >= 1) return;
     try {
         mongoose.set('strictQuery', true);
-        if (!MONGO_URI) throw new Error('MONGO_URI is missing');
+        if (!MONGO_URI) throw new Error('MONGO_URI is missing from environment variables');
         await mongoose.connect(MONGO_URI);
         console.log('✅ MongoDB Connected');
     } catch (err: any) {
@@ -27,32 +32,33 @@ const connectDB = async () => {
     }
 };
 
+// --- Middleware ---
 app.use(express.json());
 app.use(cookieParser());
 
-// List of allowed origins for browser-based clients
+/**
+ * CORS Configuration
+ * Designed to handle Web, Expo Dev, and Physical Mobile Devices
+ */
 const allowedOrigins = [
     'https://bank-cfwv.vercel.app', 
     'http://localhost:5173',
-    'http://localhost:8081', // Default Expo Dev port
+    'http://localhost:8081', 
+    'http://localhost:19000', // Expo Go default
     process.env.CLIENT_URL 
 ].filter(Boolean) as string[];
 
 app.use(cors({
     origin: (origin, callback) => {
-        // 1. Allow mobile/non-browser requests (Expo Go/Native apps send undefined origin)
+        // Allow mobile/non-browser requests (origin is undefined)
         if (!origin) return callback(null, true);
 
-        // 2. Check if origin is in whitelist or is a vercel preview/branch
         const isAllowed = allowedOrigins.includes(origin) || origin.endsWith('.vercel.app');
-        
-        // 3. Allow local IP addresses for physical device testing with Expo
-        const isLocalIP = origin.startsWith('http://192.168.');
+        const isLocalIP = origin.startsWith('http://192.168.'); // For physical phone testing
 
         if (isAllowed || isLocalIP) {
             callback(null, true);
         } else {
-            // Log rejected origins for easier debugging
             console.log('CORS Rejected Origin:', origin);
             callback(new Error('Not allowed by CORS policy'));
         }
@@ -62,7 +68,10 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 }));
 
-// Robust Preflight Handling (Crucial for Mobile/Vercel)
+/**
+ * Manual Preflight Handling
+ * Ensures mobile requests don't hang on OPTIONS checks
+ */
 app.options('*', (req: Request, res: Response) => {
     const origin = req.headers.origin;
     if (origin) {
@@ -74,18 +83,21 @@ app.options('*', (req: Request, res: Response) => {
     res.sendStatus(204); 
 });
 
-// Database connection middleware (Ensures DB is ready before every request)
+/**
+ * DB Connection Middleware
+ * Connects to DB before processing any API routes
+ */
 app.use(async (_req, _res, next) => {
     await connectDB();
     next();
 });
 
-// API Routes
+// --- API Routes ---
 app.use('/api/auth', authRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/transactions', transactionRoutes);
 
-// Root Check
+// --- Root Health Check ---
 app.get('/', (_req: Request, res: Response) => {
     res.status(200).json({ 
         status: 'success', 
@@ -95,7 +107,7 @@ app.get('/', (_req: Request, res: Response) => {
     });
 });
 
-// Global Error Handler
+// --- Global Error Handler ---
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error("Server Error:", err.message);
     res.status(err.statusCode || 500).json({
@@ -104,7 +116,7 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     });
 });
 
-// Start Server for Local Development
+// --- Start Server ---
 if (process.env.NODE_ENV !== 'production') {
     app.listen(PORT, () => {
         console.log(`🚀 Local Server: http://localhost:${PORT}`);
