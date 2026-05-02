@@ -6,8 +6,10 @@ import axios from 'axios';
  * 2. Fallback to the production backend URL with the mandatory /api suffix.
  * 3. Default to localhost for local development.
  */
+const isVercel = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
+
 const rawBaseURL = import.meta.env.VITE_API_URL || 
-                (import.meta.env.PROD 
+                (import.meta.env.PROD || isVercel
                     ? '/api' 
                     : 'http://localhost:5000/api');
 
