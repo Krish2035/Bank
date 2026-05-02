@@ -4,7 +4,8 @@ import {
     lookupUserByPhone, 
     getTransactionHistory, 
     payUtilityBill, 
-    addMoney 
+    addMoney,
+    transfer 
 } from '../controllers/transactionController.js'; 
 import { protect } from '../middleware/authMiddleware.js';
 
@@ -15,6 +16,12 @@ const router: Router = express.Router();
  * @desc    Look up a user's name by their phone number before transferring
  */
 router.get('/lookup/:phone', protect, lookupUserByPhone);
+
+/**
+ * @route   POST /api/transactions/transfer
+ * @desc    Generic transfer route (supports phone or email)
+ */
+router.post('/transfer', protect, transfer);
 
 /**
  * @route   POST /api/transactions/transfer-phone

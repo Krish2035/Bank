@@ -51,15 +51,27 @@ const Dashboard = () => {
 
   const refreshData = useCallback(async () => {
     try {
-      // 1. Refresh global user state (balance, profile info)
-      await checkUser(); 
-      // 2. Fetch latest transaction history
-      const { data } = await API.get('/transactions/history');
-      setTransactions(data);
+      // 1. Refresh user profile (balance) and transaction history in parallel
+      await Promise.all([
+        checkUser(),
+        API.get('/transactions/history').then(res => {
+          const { data } = res;
+          if (data && data.transactions) {
+            setTransactions(data.transactions);
+          } else if (Array.isArray(data)) {
+            setTransactions(data);
+          }
+        })
+      ]);
     } catch (err) {
       console.error("Dashboard Sync Error:", err);
     }
   }, [checkUser]);
+
+  // Sync user profile once on mount
+  useEffect(() => {
+    if (!user) checkUser();
+  }, [checkUser, user]);
 
   // Initial data fetch
   useEffect(() => {

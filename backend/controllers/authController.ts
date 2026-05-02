@@ -23,12 +23,22 @@ const generateAccountNumber = (): string => {
 /**
  * Helper: Centralized Cookie Configuration
  */
+const isProduction = process.env.NODE_ENV === "production";
+const isVercel = !!process.env.VERCEL;
+
 const cookieOptions: any = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production", 
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", 
+    secure: isProduction || isVercel, 
+    sameSite: (isProduction || isVercel) ? 'none' : 'lax', 
     maxAge: 24 * 60 * 60 * 1000, 
+    path: '/',
 };
+
+// CRITICAL: Ensure local development on http://localhost works
+if (!isProduction && !isVercel) {
+    cookieOptions.secure = false;
+    cookieOptions.sameSite = 'lax';
+}
 
 // --- REGISTER USER ---
 export const registerUser = async (req: Request, res: Response) => {

@@ -8,7 +8,7 @@ import axios from 'axios';
  */
 const rawBaseURL = import.meta.env.VITE_API_URL || 
                 (import.meta.env.PROD 
-                    ? 'https://bank-o2xx.vercel.app/api' 
+                    ? '/api' 
                     : 'http://localhost:5000/api');
 
 // Safety: Ensure there is no trailing slash at the end of the baseURL
@@ -35,10 +35,15 @@ API.interceptors.response.use(
         const isAuthPage = currentPath.includes('/login') || currentPath.includes('/signup');
 
         // Redirect to login only if unauthorized and not already on an auth-related page
-        if (error.response?.status === 401 && !isAuthPage) {
-            // Clear local user data to stay in sync with the server
+        // Added check for error.config.url to avoid redirecting if the login call itself fails (though that's usually 400/401)
+        if (error.response?.status === 401 && !isAuthPage && !error.config.url.includes('/auth/login')) {
+            console.warn("Unauthorized access detected. Redirecting to login...");
             localStorage.removeItem('user'); 
-            window.location.href = '/login';
+            
+            // Avoid multiple redirects if one is already in progress
+            if (!window.location.pathname.includes('/login')) {
+                window.location.href = '/login?expired=true';
+            }
         }
         
         return Promise.reject(error);

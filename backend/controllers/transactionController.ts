@@ -73,18 +73,18 @@ export const addMoney = async (req: AuthRequest, res: Response) => {
 };
 
 /**
- * Executes a transfer using a Phone Number.
+ * Executes a transfer using either Phone Number or Email.
  */
-export const transferByPhone = async (req: AuthRequest, res: Response) => {
+export const transfer = async (req: AuthRequest, res: Response) => {
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
-        const { phone, amount, description } = req.body;
+        const { recipientEmail, phone, amount, description } = req.body;
         const senderId = req.user?.id; 
 
-        if (!phone || !amount) {
-            return res.status(400).json({ success: false, message: "Recipient phone and amount are required" });
+        if ((!phone && !recipientEmail) || !amount) {
+            return res.status(400).json({ success: false, message: "Recipient (phone or email) and amount are required" });
         }
 
         const transferAmount = Number(amount);
@@ -92,7 +92,14 @@ export const transferByPhone = async (req: AuthRequest, res: Response) => {
             return res.status(400).json({ success: false, message: "Invalid transfer amount" });
         }
 
-        const receiver = await User.findOne({ phoneNumber: phone }).session(session);
+        // Find receiver by phone or email
+        let receiver;
+        if (phone) {
+            receiver = await User.findOne({ phoneNumber: phone }).session(session);
+        } else if (recipientEmail) {
+            receiver = await User.findOne({ email: recipientEmail.toLowerCase() }).session(session);
+        }
+
         if (!receiver) {
             throw new Error("Recipient not found on Nova Bank");
         }
@@ -122,7 +129,8 @@ export const transferByPhone = async (req: AuthRequest, res: Response) => {
             description: description || `Transfer to ${receiver.firstName}`,
             status: 'completed',
             metadata: {
-                phoneNumber: phone
+                phoneNumber: phone || receiver.phoneNumber,
+                email: recipientEmail || receiver.email
             }
         }], { session });
 
@@ -136,7 +144,7 @@ export const transferByPhone = async (req: AuthRequest, res: Response) => {
         res.status(200).json({ 
             success: true,
             message: "Transfer successful!", 
-            user: sender, // Returns updated sender balance
+            user: sender, 
             transactionId: transaction._id
         });
 
@@ -149,6 +157,11 @@ export const transferByPhone = async (req: AuthRequest, res: Response) => {
 };
 
 /**
+ * Executes a transfer using a Phone Number. (Legacy support)
+ */
+export const transferByPhone = transfer;
+
+/**
  * Handles Utility Bill Payments
  */
 export const payUtilityBill = async (req: AuthRequest, res: Response) => {
@@ -157,10 +170,12 @@ export const payUtilityBill = async (req: AuthRequest, res: Response) => {
 
     try {
         // Updated field names to match common utility payment logic
-        const { serviceProvider, category, amount, consumerId } = req.body;
+        const { serviceProvider, category, amount, consumerId, consumerNumber } = req.body;
         const senderId = req.user?.id;
 
-        if (!amount || !consumerId) {
+        const actualConsumerId = consumerId || consumerNumber;
+
+        if (!amount || !actualConsumerId) {
             return res.status(400).json({ success: false, message: "Consumer ID and amount are required" });
         }
 
@@ -182,11 +197,11 @@ export const payUtilityBill = async (req: AuthRequest, res: Response) => {
             amount: billAmount,
             type: 'bill_pay',
             category: category || 'Utility',
-            description: `${serviceProvider || category} Bill Payment - ID: ${consumerId}`,
+            description: `${serviceProvider || category} Bill Payment - ID: ${actualConsumerId}`,
             status: 'completed',
             metadata: {
                 serviceProvider,
-                billId: consumerId
+                billId: actualConsumerId
             }
         }], { session });
 

@@ -14,7 +14,6 @@ dotenv.config();
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI as string;
-const BACKEND_URL = 'https://bank-o2xx.vercel.app'; 
 
 /**
  * MongoDB Connection Logic
@@ -45,18 +44,25 @@ const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:8081', 
     'http://localhost:19000',
-    process.env.CLIENT_URL 
+    process.env.CLIENT_URL,
+    process.env.FRONTEND_URL
 ].filter(Boolean) as string[];
 
 app.use(cors({
     origin: (origin, callback) => {
         if (!origin) return callback(null, true);
-        const isAllowed = allowedOrigins.includes(origin) || origin.endsWith('.vercel.app');
+        
+        const isAllowed = allowedOrigins.some(allowed => 
+            origin === allowed || 
+            (allowed && allowed.startsWith('http') && origin.startsWith(allowed))
+        ) || origin.endsWith('.vercel.app');
+        
         const isLocalIP = origin.startsWith('http://192.168.') || origin.startsWith('http://10.0.'); 
 
         if (isAllowed || isLocalIP) {
             callback(null, true);
         } else {
+            console.warn(`CORS blocked for origin: ${origin}`);
             callback(new Error('Not allowed by CORS policy'));
         }
     },
@@ -69,8 +75,12 @@ app.use(cors({
  * DB Connection Middleware
  */
 app.use(async (_req, _res, next) => {
-    await connectDB();
-    next();
+    try {
+        await connectDB();
+        next();
+    } catch (error) {
+        next(error);
+    }
 });
 
 // --- API Routes ---
@@ -82,7 +92,8 @@ app.use('/api/transactions', transactionRoutes);
 app.get('/', (_req: Request, res: Response) => {
     res.status(200).json({ 
         status: 'success', 
-        message: 'Nova Bank API is live',
+        message: 'Nova Bank API is live and healthy',
+        environment: process.env.NODE_ENV || 'development',
         timestamp: new Date().toISOString()
     });
 });
