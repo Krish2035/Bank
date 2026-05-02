@@ -15,6 +15,9 @@ const app: Application = express();
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI as string;
 
+// Essential for Vercel cookies
+app.set("trust proxy", 1);
+
 /**
  * MongoDB Connection Logic
  * Optimized for Vercel Serverless (checks readyState)

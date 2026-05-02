@@ -24,12 +24,12 @@ const generateAccountNumber = (): string => {
  * Helper: Centralized Cookie Configuration
  */
 const isProduction = process.env.NODE_ENV === "production";
-const isVercel = !!process.env.VERCEL;
 
+// For Vercel same-domain deployment, 'lax' is safer and more compatible than 'none'
 const cookieOptions: any = {
     httpOnly: true,
-    secure: isProduction || isVercel, 
-    sameSite: (isProduction || isVercel) ? 'none' : 'lax', 
+    secure: isProduction, 
+    sameSite: isProduction ? 'lax' : 'lax', 
     maxAge: 24 * 60 * 60 * 1000, 
     path: '/',
 };
