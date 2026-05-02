@@ -26,11 +26,16 @@ const connectDB = async () => {
     if (mongoose.connection.readyState >= 1) return;
     try {
         mongoose.set('strictQuery', true);
-        if (!MONGO_URI) throw new Error('MONGO_URI is missing from environment variables');
+        if (!MONGO_URI) {
+            console.error('❌ MONGO_URI is missing!');
+            throw new Error('MONGO_URI is missing from environment variables');
+        }
+        console.log('⏳ Connecting to MongoDB...');
         await mongoose.connect(MONGO_URI);
         console.log('✅ MongoDB Connected');
     } catch (err: any) {
-        console.error('❌ MongoDB Error:', err.message);
+        console.error('❌ MongoDB Connection Failed:', err.message);
+        // Do not throw here, let the middleware handle it or log it
     }
 };
 
