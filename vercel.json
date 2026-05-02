@@ -17,8 +17,12 @@
       "destination": "/backend/index.ts"
     },
     {
-      "source": "/(.*)",
-      "destination": "/frontend/$1"
+      "source": "/assets/(.*)",
+      "destination": "/frontend/assets/$1"
+    },
+    {
+      "source": "/((?!api|assets).*).*",
+      "destination": "/frontend/index.html"
     }
   ]
 }
